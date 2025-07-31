@@ -1,0 +1,13 @@
+{
+  "name": "ecommerce-server",
+  "version": "1.0.0",
+  "description": "E-Commerce RESTful API Server",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Aesperus",
+  "license": "MIT",
+  "type": "commonjs"
+}
