@@ -21,6 +21,19 @@ const encryptPassword = async (password) => {
     }
 }
 
+// Function to compare a password with a hashed password
+// Returns a promise that resolves to true if the password matches, false otherwise
+const decryptPassword = async (password, hashedPassword) => {
+    try {
+        const isMatch = await bcrypt.compare(password, hashedPassword);
+        return isMatch;
+    } catch (error) {
+        console.error('Error comparing passwords:', error);
+        throw new Error('Failed to compare passwords');
+    }
+}
+
 module.exports = {
-    encryptPassword
+    encryptPassword,
+    decryptPassword
 };
