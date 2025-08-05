@@ -16,6 +16,7 @@ const app = express();
 app.use(cors()); // Enable CORS for all routes
 app.use(bodyParser.json()); // Parse JSON bodies
 app.use(bodyParser.urlencoded({ extended: true })); // Parse URL-encoded bodies
+
 // Create a session middleware with a secret
 app.use(
     session({
@@ -24,7 +25,7 @@ app.use(
         saveUninitialized: false,
         cookie: {
             secure: false,
-            maxAge: 24 * 60 * 60 * 1000 // 1 day
+            maxAge: 24 * 60 * 60 * 1000 // Expires after 1 day
         }
     })
 );
