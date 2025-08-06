@@ -24,6 +24,13 @@ const findUserEmail = async (email) => {
     return result.rows[0]; // Return the first user found with the given email
 }
 
+// Function to find a user by ID
+// Returns a promise that resolves to the user object if found, or null if not found
+const findUserById = async (id) => {
+    const result = await query('SELECT * FROM users WHERE id = $1', [id]);
+    return result.rows[0];
+}
+
 // Function to create a new user
 // Takes user data as input, encrypts the password, and inserts the user into the database
 const createUser = async (data) => {
@@ -41,5 +48,6 @@ const createUser = async (data) => {
 module.exports = {
     query,
     findUserEmail,
+    findUserById,
     createUser
 };

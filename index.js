@@ -4,6 +4,8 @@ const db = require('./db/index.js') // Import the database module
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const session = require('express-session');
+const passport = require('passport'); // Import Passport.js for authentication
+const passportConfig = require ('./services/passport.js'); // Import the passport configuration
 
 const authenticationRouter = require('./routes/authentication.js'); // Import the authentication router
 const productsRouter = require('./routes/products.js'); // Import the products router
@@ -24,11 +26,15 @@ app.use(
         resave: false,
         saveUninitialized: false,
         cookie: {
-            secure: false,
+            secure: process.env.NODE_ENV === 'production', // Only secure in production with HTTPS
+            httpOnly: true, // Prevent XSS attacks
             maxAge: 24 * 60 * 60 * 1000 // Expires after 1 day
         }
     })
 );
+
+app.use(passport.initialize()); // Initialize Passport.js
+app.use(passport.session()); // Use Passport.js session
 
 app.use('/auth', authenticationRouter); // Use the authentication router
 app.use('/products', productsRouter); // Use the products router

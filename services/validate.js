@@ -11,11 +11,11 @@ const passwordValidation = (password) => {
     }
 
     // Example: Password must contain at least one uppercase letter, one lowercase letter, and one number
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumber = /\d/.test(password);
+    const hasUpperCase = /[A-Z]/.test(password); // Check for uppercase letters
+    const hasLowerCase = /[a-z]/.test(password); // Check for lowercase letters
+    const hasNumber = /\d/.test(password); // Check for numbers
     
-    if (!hasUpperCase && !hasLowerCase && !hasNumber) {
+    if (!hasUpperCase || !hasLowerCase || !hasNumber) { // Check if all conditions are met
         return false;
     }
 

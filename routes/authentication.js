@@ -2,7 +2,10 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/index.js'); // Import the database module
 const validate = require('../services/validate.js'); // Import the validation service
+const passport = require('passport'); // Import Passport.js for authentication
 
+// Full validation service for user registration
+// Validates email, password, first name, and last name
 function validationService (req, res, next) {
     const data = req.body; // Get user data from request body
 
@@ -29,6 +32,22 @@ function validationService (req, res, next) {
         return res.status(400).json({ error: 'First name and last name must not contain special characters (dots (.) and spaces are allowed).' });
     }
     next(); // Proceed to the next middleware or route handler
+}
+
+// Shorter validation for login
+// Only checks for email and password presence and email format
+function validationServiceShort (req, res, next) {
+    const data = req.body;
+
+    if(!data.email || !data.password) {
+        return res.status(400).json({ error: 'Email and password are required for login.' });
+    }
+
+    if(!validate.emailValidation(data.email)) {
+        return res.status(400).json({ error: 'Invalid email format.' });
+    }
+
+    next();
 }
 
 // Route for user registration
@@ -59,8 +78,37 @@ router.post('/register', validationService, async (req, res) => {
 });
 
 // Route for user login
-router.post('/login', async (req, res) => {
-    res.send('User login endpoint');
+router.post('/login', validationServiceShort, (req, res, next) => {
+    passport.authenticate('local', (err, user, info) => {
+        if (err) {
+            return res.status(500).json({ error: 'Internal server error.' });
+        }
+        if (!user) {
+            return res.status(401).json({ error: info.message || 'Authentication failed.' });
+        }
+        req.logIn(user, (err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Login failed.' });
+            }
+            return res.status(200).json({ message: 'Login successful', user: { id: user.id, email: user.email, firstName: user.first_name, lastName: user.last_name } });
+        });
+    })(req, res, next);
+});
+
+// Route for user logout
+router.post('/logout', (req, res) => {
+    req.logout((err) => {
+        if (err) {
+            return res.status(500).json({ error: 'Logout failed.' });
+        }
+        req.session.destroy((err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Session destruction failed.' });
+            }
+            res.clearCookie('connect.sid'); // Clear session cookie
+            return res.status(200).json({ message: 'Logout successful.' });
+        });
+    });
 });
 
 module.exports = router;
