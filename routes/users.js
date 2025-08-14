@@ -3,6 +3,14 @@ const router = express.Router();
 const db = require('../db/index.js'); // Import the database module
 const validate = require('../services/validate.js'); // Import the validation service
 
+// Check if user is logged in
+function loggedIn(req, res, next) {
+    if(req.user) {
+        return next();
+    }
+    return res.status(403).json({ error: 'User is not logged in.' });
+}
+
 // Validation service for user information update
 // Validates email, password, first name, and last name
 function validationService (req, res, next) {
@@ -35,7 +43,7 @@ function validationService (req, res, next) {
 
 // Route for getting user information by ID
 // Returns user information without password and ID
-router.get('/:userId', async (req, res) => {
+router.get('/:userId', loggedIn, async (req, res) => {
     const { userId } = req.params;
     try {
         const user = await db.findUserById(userId);
@@ -54,7 +62,7 @@ router.get('/:userId', async (req, res) => {
 
 // Route for updating user information
 // Validates user data and updates user information in the database
-router.put('/:userId', validationService, async (req, res) => {
+router.put('/:userId', loggedIn, validationService, async (req, res) => {
     const { userId } = req.params;
     const data = req.body; // Get updated user data from request body
     try {

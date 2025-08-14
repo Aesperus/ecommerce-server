@@ -11,6 +11,18 @@ const pool = new Pool({
     port: DB.PGPORT,
 });
 
+// Handle errors from the pool
+pool.on('error', (err) => {
+    console.error('Unexpected error on idle client', err);
+    process.exit(-1);
+});
+
+// Handle termination signals
+process.on('SIGINT', async () => {
+    await pool.end();
+    process.exit(0);
+});
+
 // Function to execute a query against the database
 // Returns a promise that resolves to the result of the query
 const query = (text, params) => {

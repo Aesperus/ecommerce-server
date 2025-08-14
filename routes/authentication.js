@@ -3,6 +3,15 @@ const router = express.Router();
 const db = require('../db/index.js'); // Import the database module
 const validate = require('../services/validate.js'); // Import the validation service
 const passport = require('passport'); // Import Passport.js for authentication
+const limiter = require('express-rate-limit');
+
+//Limit repeated requests to all authentication routes to 5 per IP per 15 minutes
+router.use(limiter({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: 'Too many requests, please try again later.',
+    skipSuccessfulRequests: true // do not count successful requests
+}));
 
 // Full validation service for user registration
 // Validates email, password, first name, and last name

@@ -1,5 +1,5 @@
 const express = require('express');
-const PORT = process.env.PORT; // Get PORT from environment variables
+const PORT = process.env.PORT || 3000; // Get PORT from environment variables
 const db = require('./db/index.js') // Import the database module
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -20,6 +20,9 @@ app.use(bodyParser.json()); // Parse JSON bodies
 app.use(bodyParser.urlencoded({ extended: true })); // Parse URL-encoded bodies
 
 // Create a session middleware with a secret
+if(!process.env.SESSION_SECRET) {
+    console.warn('Warning: SESSION_SECRET is not set. Sessions will not be secure');
+}
 app.use(
     session({
         secret: process.env.SESSION_SECRET,
@@ -43,8 +46,16 @@ app.use('/cart', cartRouter); // Use the cart router
 app.use('/orders', ordersRouter); // Use the orders router
 
 app.get('/', async (req, res) => {
-    const result = await db.query('SELECT NOW()');
-    res.send(result.rows[0]);
+    try {
+        const result = await db.query('SELECT NOW()');
+        if(!result) {
+            return res.status(404).send('Database connection failed');
+        }
+        return res.send('Database connection successful');
+    } catch (error) {
+        console.error('Error executing query', error);
+        res.status(500).send('Internal Server Error');
+    }
 });
 
 app.listen(PORT, () => {
