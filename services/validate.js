@@ -1,26 +1,35 @@
+const options = {
+    emailRegex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, //Standard email format: user@example.com
+    specialCharRegex: /[!@#$%^&*(),?":{}|<>]/, //Banned special characters
+    passwordMinLength: 8, // Minimum password length
+    passwordUpperCase: true, // Require at least one uppercase letter
+    passwordLowerCase: true, // Require at least one lowercase letter
+    passwordNumber: true, // Require at least one number
+    passwordNoSpaces: true, // Disallow spaces
+}
+
+
 // Validate email format
 const emailValidation = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    return options.emailRegex.test(email);
 }
 
 const passwordValidation = (password) => {
-    // Example: Password must be at least 8 characters long
-    if (password.length < 8) {
+    if (password.length < options.passwordMinLength) {
         return false;
     }
 
-    // Example: Password must contain at least one uppercase letter, one lowercase letter, and one number
-    const hasUpperCase = /[A-Z]/.test(password); // Check for uppercase letters
-    const hasLowerCase = /[a-z]/.test(password); // Check for lowercase letters
-    const hasNumber = /\d/.test(password); // Check for numbers
-    
+    // Check for uppercase, lowercase, and number requirements
+    const hasUpperCase = options.passwordUpperCase ? /[A-Z]/.test(password) : true;
+    const hasLowerCase = options.passwordLowerCase ? /[a-z]/.test(password) : true;
+    const hasNumber = options.passwordNumber ? /\d/.test(password) : true;
+
     if (!hasUpperCase || !hasLowerCase || !hasNumber) { // Check if all conditions are met
         return false;
     }
 
-    // Example: Password must not contain spaces
-    if (/\s/.test(password)) {
+    // Check for spaces requirement
+    if (options.passwordNoSpaces && /\s/.test(password)) {
         return false;
     }
 
@@ -29,8 +38,7 @@ const passwordValidation = (password) => {
 
 const stringValidation = (str) => {
     // Example: String must not contain special characters
-    const specialCharRegex = /[!@#$%^&*(),?":{}|<>]/;
-    if (specialCharRegex.test(str)) {
+    if (options.specialCharRegex.test(str)) {
         return false;
     }
 
