@@ -1,23 +1,29 @@
 const express = require('express');
 const router = express.Router();
+const db = require('../db');
 
-router.get('/', async (req, res) => {
-    res.send('Get your cart items');
-});
+// Check if user is logged in
+function loggedIn(req, res, next) {
+    if(req.user) {
+        return next();
+    }
+    return res.status(403).json({ error: 'User is not logged in.' });
+}
 
-router.put('/:itemId', async (req, res) => {
-    const { itemId } = req.params;
-    res.send(`Update item with ID: ${itemId} in your cart`);
-});
+router.post('/', loggedIn, async (req, res) => {
+    const userId = req.user.id; // Id must be present if user is logged in
+    const { itemId, quantity } = req.body; // Item ID and quantity are required to be present by spec
 
-router.post('/:itemId', async (req, res) => {
-    const { itemId } = req.params;
-    res.send(`Add item with ID: ${itemId} to your cart`);
-});
+    const cartExists = await db.findCart(userId);
+    if (!cartExists) {
+        // If no cart exists, create one
+        await db.createCart(userId, itemId, quantity);
+    } else {
+        // If cart exists, return an error
+        return res.status(400).json({ error: 'A cart already exists for this user.' });
+    }
 
-router.delete('/:itemId', async (req, res) => {
-    const { itemId } = req.params;
-    res.send(`Remove item with ID: ${itemId} from your cart`);
-});
+    return res.status(200).json({ message: 'Cart created successfully' });
+})
 
 module.exports = router;

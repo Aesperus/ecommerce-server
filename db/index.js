@@ -64,6 +64,11 @@ const getAllProducts = async () => {
     return result.rows; // Return the list of products
 }
 
+const getProductById = async (productId) => {
+    const result = await query('SELECT * FROM products WHERE id = $1', [productId]);
+    return result.rows[0];
+}
+
 // Function to update a user's information
 // Takes user ID and data as input, updates the user's information in the database
 const updateUser = async (id, data) => {
@@ -76,11 +81,53 @@ const updateUser = async (id, data) => {
     return result.rows[0]; // Return the updated user
 }
 
+// Find a cart by user ID
+const findCart = async (userId) => {
+    const result = await query('SELECT * FROM carts WHERE user_id = $1', [userId]);
+    if(result.rows.length === 0) {
+        return null; // Return null if no cart is found
+    }
+
+    return result.rows[0];
+}
+
+const createCart = async (userId, productId, quantity) => {
+    const product = await getProductById(productId); // Find the product that the cart is initialized with
+    if (!product) {
+        throw new Error('Product not found');
+    }
+
+    const total = product.price * quantity; // Calculate the initial total price
+
+    // Insert a new cart into the database
+    const result = await query(
+        'INSERT INTO carts (user_id, total_price) VALUES ($1, $2) RETURNING *',
+        [userId, total]
+    );
+    if (result.rows.length === 0) {
+        throw new Error('Failed to create cart');
+    }
+
+    // Insert data into the carts_products lookup table to connect the cart with the product
+    const cartItem = await query(
+        'INSERT INTO carts_products (cart_id, product_id, quantity) VALUES ($1, $2, $3) RETURNING *',
+        [result.rows[0].id, productId, quantity]
+    );
+    if (cartItem.rows.length === 0) {
+        throw new Error('Failed to add item to cart');
+    }
+
+    return result.rows[0]; // Return the cart data
+}
+
 module.exports = {
     query,
     findUserEmail,
     findUserById,
     createUser,
     getAllProducts,
-    updateUser
+    getProductById,
+    updateUser,
+    findCart,
+    createCart
 };

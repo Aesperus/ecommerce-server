@@ -17,11 +17,11 @@ router.get('/', async (req, res) => {
 router.get('/:productId', async (req, res) => {
     const productId = req.params.productId;
     try {
-        const result = await db.query('SELECT * FROM products WHERE id = $1', [productId]);
-        if (result.rows.length === 0) {
+        const result = await db.getProductById(productId);
+        if (!result) {
             return res.status(404).json({ error: 'Product not found.' });
         }
-        res.status(200).json(result.rows[0]);
+        res.status(200).json(result);
     } catch (error) {
         console.error('Error fetching product:', error);
         res.status(500).json({ error: 'Internal server error.' });
