@@ -91,6 +91,55 @@ const findCart = async (userId) => {
     return result.rows[0];
 }
 
+// Find a cart by its ID
+const findCartById = async (cartId) => {
+    const result = await query('SELECT * FROM carts WHERE id = $1', [cartId]);
+    if(result.rows.length === 0) {
+        return null; // Return null if no cart is found
+    }
+
+    return result.rows[0];
+}
+
+const updateCart = async (cartId, productId, quantity) => {
+    // Find the added product
+    const product = await getProductById(productId);
+    if (!product) {
+        throw new Error('Product not found');
+    }
+    let addedTotal = quantity * product.price; // Calculate the total price for the added product
+
+    // Check if the product is already in the cart
+    const result = await query('SELECT * FROM carts_products WHERE cart_id = $1 AND product_id = $2', [cartId, productId]);
+    if(result.rows.length === 0) {
+        // If the product is not in the cart, add it
+        const insertResult = await query(
+            'INSERT INTO carts_products (cart_id, product_id, quantity) VALUES ($1, $2, $3) RETURNING *',
+            [cartId, productId, quantity]
+        );
+        // Add the new product price to the cart total
+        const addTotal = await query(
+            'UPDATE carts SET total_price = total_price + $1 WHERE id = $2 RETURNING *',
+            [addedTotal, cartId]
+        );
+    } else {
+        // If the product is already in the cart, update its quantity
+        const updateResult = await query(
+            'UPDATE carts_products SET quantity = $1 WHERE cart_id = $2 AND product_id = $3 RETURNING *',
+            [quantity, cartId, productId]
+        );
+        // Set the new total cart price to the updated product price
+        const setTotal = await query(
+            'UPDATE carts SET total_price = $1 WHERE id = $2 RETURNING *',
+            [addedTotal, cartId]
+        );
+    }
+
+    // Find and return the updated cart
+    const updatedCart = await findCartById(cartId);
+    return updatedCart;
+}
+
 const createCart = async (userId, productId, quantity) => {
     const product = await getProductById(productId); // Find the product that the cart is initialized with
     if (!product) {
@@ -120,6 +169,38 @@ const createCart = async (userId, productId, quantity) => {
     return result.rows[0]; // Return the cart data
 }
 
+const findProductInCart = async (cartId, productId) => {
+    const result = await query('SELECT * FROM carts_products WHERE cart_id = $1 AND product_id = $2', [cartId, productId]);
+    if (result.rows.length === 0) {
+        return null; // Return null if the product is not found in the cart
+    }
+
+    return result.rows[0];
+}
+
+const removeProductFromCart = async (cartId, productId) => {
+    // Get the current cart details related to the product being removed
+    const currentCart = await query('SELECT * FROM carts_products WHERE cart_id = $1 AND product_id = $2', [cartId, productId]);
+    const removedQuantity = currentCart.rows[0].quantity; // Get the quantity of the product being removed
+    const product = await getProductById(productId); // Get the product details
+    const removedTotal = removedQuantity * product.price; // Calculate the total price of the removed product
+
+    // Delete the product from the cart
+    await query('DELETE FROM carts_products WHERE cart_id = $1 AND product_id = $2', [cartId, productId]);
+    // Check if there are products left in the cart
+    const newCart = await query('SELECT * from carts_products WHERE cart_id = $1', [cartId]);
+    // If there are no products left, delete the cart and return null
+    if (newCart.rows.length === 0) {
+        await query('DELETE FROM carts WHERE id = $1', [cartId]);
+        return null;
+    } else {
+        // If there are products left in the cart, update the total price, find the updated cart and return it
+        await query('UPDATE carts SET total_price = round(total_price - $1, 2) WHERE id = $2', [removedTotal, cartId]);
+        const updatedCart = await findCartById(cartId);
+        return updatedCart;
+    }
+}
+
 module.exports = {
     query,
     findUserEmail,
@@ -129,5 +210,9 @@ module.exports = {
     getProductById,
     updateUser,
     findCart,
-    createCart
+    findCartById,
+    updateCart,
+    createCart,
+    findProductInCart,
+    removeProductFromCart
 };
