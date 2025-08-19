@@ -113,31 +113,66 @@ const updateCart = async (cartId, productId, quantity) => {
     const result = await query('SELECT * FROM carts_products WHERE cart_id = $1 AND product_id = $2', [cartId, productId]);
     if(result.rows.length === 0) {
         // If the product is not in the cart, add it
-        const insertResult = await query(
-            'INSERT INTO carts_products (cart_id, product_id, quantity) VALUES ($1, $2, $3) RETURNING *',
-            [cartId, productId, quantity]
-        );
-        // Add the new product price to the cart total
-        const addTotal = await query(
-            'UPDATE carts SET total_price = total_price + $1 WHERE id = $2 RETURNING *',
-            [addedTotal, cartId]
-        );
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN'); // Start a transaction
+            const insertResult = await client.query(
+                'INSERT INTO carts_products (cart_id, product_id, quantity) VALUES ($1, $2, $3) RETURNING *',
+                [cartId, productId, quantity]
+            );
+            // Add the new product price to the cart total
+            const addTotal = await client.query(
+                'UPDATE carts SET total_price = total_price + $1 WHERE id = $2 RETURNING *',
+                [addedTotal, cartId]
+            );
+            await client.query('COMMIT'); // Commit the transaction
+            client.release();
+        } catch (error) {
+            await client.query('ROLLBACK'); // Rollback the transaction on error
+            client.release();
+            throw error;            
+        } finally {
+            client.release();
+        }
     } else {
-        // If the product is already in the cart, update its quantity
-        const updateResult = await query(
-            'UPDATE carts_products SET quantity = $1 WHERE cart_id = $2 AND product_id = $3 RETURNING *',
-            [quantity, cartId, productId]
-        );
-        // Set the new total cart price to the updated product price
-        const setTotal = await query(
-            'UPDATE carts SET total_price = $1 WHERE id = $2 RETURNING *',
-            [addedTotal, cartId]
-        );
+    // Calculate the quantity change
+    const quantityChange = {
+        change: Math.abs(quantity - result.rows[0].quantity), // Absolute difference between the new and existing quantity
+        direction: quantity < result.rows[0].quantity ? 'decrease' : 'increase' // Determine if the change is an increase or decrease
     }
+        addedTotal = quantityChange.change * product.price; // Calculate the added total price based on the quantity change
+        if (quantityChange.direction === 'decrease') {
+            addedTotal = -addedTotal; // If decreasing, subtract the total price
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN'); // Start a transaction
+            // If the product is already in the cart, update its quantity
+            const updateResult = await client.query(
+                'UPDATE carts_products SET quantity = $1 WHERE cart_id = $2 AND product_id = $3 RETURNING *',
+                [quantity, cartId, productId]
+            );        
+        
+            // Update the cart's total price
+            const setTotal = await client.query(
+                'UPDATE carts SET total_price = total_price + $1 WHERE id = $2 RETURNING *',
+                [addedTotal, cartId]
+            );
+
+        await client.query('COMMIT'); // Commit the transaction
+        } catch (error) {
+            await client.query('ROLLBACK'); // Rollback the transaction on error
+            client.release();
+            throw error;
+        } finally {
+            client.release();
+        }
 
     // Find and return the updated cart
     const updatedCart = await findCartById(cartId);
     return updatedCart;
+    }
 }
 
 const createCart = async (userId, productId, quantity) => {
@@ -201,6 +236,15 @@ const removeProductFromCart = async (cartId, productId) => {
     }
 }
 
+// Retrieve all products in the cart
+const getCartProducts = async (cartId) => {
+    const cart = await query(
+        'SELECT products.name, carts_products.quantity FROM carts JOIN carts_products ON carts.id = carts_products.cart_id JOIN products ON carts_products.product_id = products.id WHERE carts.id = $1',
+        [cartId]
+    )
+    return cart.rows; // Return the product details
+}
+
 module.exports = {
     query,
     findUserEmail,
@@ -214,5 +258,6 @@ module.exports = {
     updateCart,
     createCart,
     findProductInCart,
-    removeProductFromCart
+    removeProductFromCart,
+    getCartProducts
 };

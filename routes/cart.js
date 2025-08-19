@@ -10,31 +10,44 @@ function loggedIn(req, res, next) {
     return res.status(403).json({ error: 'User is not logged in.' });
 }
 
+function validation (req, res, next) {
+    const { itemId, quantity } = req.body; // Validate if itemID and quantity are present in the request body
+    if (!itemId || !quantity) {
+        return res.status(400).json({ error: 'Item ID and quantity are required.' });
+    }
+    if (quantity <= 0 || !Number.isInteger(quantity)) { // Quantity must be a positive integer
+        return res.status(400).json({ error: 'Quantity must be a positive integer.' });
+    }
+    next();
+}
+
 router.get('/:cartId', loggedIn, async (req, res) => {
     const cart = await db.findCartById(req.params.cartId);
     if (!cart) {
         return res.status(404).json({ error: 'Cart not found.' });
     }
-    return res.status(200).json(cart);
+    const products = await db.getCartProducts(req.params.cartId);
+    return res.status(200).json({ cart, products });
 });
 
-router.post('/', loggedIn, async (req, res) => {
+router.post('/', loggedIn, validation, async (req, res) => {
     const userId = req.user.id; // Id must be present if user is logged in
     const { itemId, quantity } = req.body; // Item ID and quantity are required to be present by spec
+    let cart;
 
     const cartExists = await db.findCart(userId);
     if (!cartExists) {
         // If no cart exists, create one
-        await db.createCart(userId, itemId, quantity);
+        cart = await db.createCart(userId, itemId, quantity);
     } else {
         // If cart exists, return an error
         return res.status(400).json({ error: 'A cart already exists for this user.' });
     }
-
-    return res.status(200).json({ message: 'Cart created successfully' });
+    const products = await db.getCartProducts(cart.id);
+    return res.status(200).json({ message: 'Cart created successfully', cart, products });
 })
 
-router.post('/:cartId', loggedIn, async (req, res) => {    
+router.post('/:cartId', loggedIn, validation, async (req, res) => {    
     const { itemId, quantity } = req.body;
 
     // Check if the cart exists
@@ -45,7 +58,8 @@ router.post('/:cartId', loggedIn, async (req, res) => {
 
     // Update the cart with the new item
     const updatedCart = await db.updateCart(req.params.cartId, itemId, quantity);
-    return res.status(200).json(updatedCart);
+    const products = await db.getCartProducts(req.params.cartId);
+    return res.status(200).json({ message: 'Cart updated successfully', updatedCart, products });
 })
 
 router.delete('/:cartId/:productId', loggedIn, async (req, res) => {
@@ -66,9 +80,10 @@ router.delete('/:cartId/:productId', loggedIn, async (req, res) => {
     // Remove the product from the cart
     const updatedCart = await db.removeProductFromCart(cartId, productId);
     if (updatedCart === null) { // If there are no more products in the cart, return 204
-        return res.status(204).json({ message: 'Cart is empty and has been removed.' });
+        return res.status(204).json();
     } else {
-        return res.status(200).json(updatedCart); // If there are products left in the cart, return the updated cart
+        const products = await db.getCartProducts(cartId);
+        return res.status(200).json({ updatedCart, products }); // If there are products left in the cart, return the updated cart and its products
     }
 })
 
