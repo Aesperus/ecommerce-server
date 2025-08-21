@@ -6,6 +6,10 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 const passport = require('passport'); // Import Passport.js for authentication
 const passportConfig = require ('./services/passport.js'); // Import the passport configuration
+const swaggerUi = require('swagger-ui-express'); // Import Swagger UI for API documentation
+const yaml = require('js-yaml');
+const fs = require('fs');
+const path = require('path');
 
 const authenticationRouter = require('./routes/authentication.js'); // Import the authentication router
 const productsRouter = require('./routes/products.js'); // Import the products router
@@ -14,6 +18,9 @@ const cartRouter = require('./routes/cart.js'); // Import the cart router
 const ordersRouter = require('./routes/orders.js'); // Import the orders router
 
 const app = express();
+// Initialize Swagger from swagger.yaml and serve it at /docs
+const swaggerDocument = yaml.load(fs.readFileSync(path.resolve(__dirname, './swagger.yaml'), 'utf8'));
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 app.use(cors()); // Enable CORS for all routes
 app.use(bodyParser.json()); // Parse JSON bodies
@@ -44,6 +51,11 @@ app.use('/products', productsRouter); // Use the products router
 app.use('/users', usersRouter); // Use the users router
 app.use('/cart', cartRouter); // Use the cart router
 app.use('/orders', ordersRouter); // Use the orders router
+
+app.get('/swagger.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec); // Serve the Swagger JSON spec
+});
 
 app.get('/', async (req, res) => {
     try {
