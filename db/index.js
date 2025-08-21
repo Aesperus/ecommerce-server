@@ -299,6 +299,18 @@ const deleteCart = async (cartId) => {
     return true; // Return true if everything worked.
 }
 
+// Find all orders made by a specified user
+const getOrders = async (userId) => {
+    const result = await query('SELECT * FROM orders WHERE user_id = $1', [userId]);
+    return result.rows; // Return the list of orders for the user
+}
+
+// Find order by order ID
+const getOrderById = async (userId, orderId) => {
+    const result = await query('SELECT * FROM orders WHERE id = $1 AND user_id = $2', [orderId, userId]); // Match the user id with the order id for security
+    return result.rows[0]; // Return the order details
+}
+
 module.exports = {
     query,
     findUserEmail,
@@ -316,5 +328,7 @@ module.exports = {
     getCartProducts,
     getOrderProducts,
     createOrder,
-    deleteCart
+    deleteCart,
+    getOrders,
+    getOrderById
 };
