@@ -239,10 +239,64 @@ const removeProductFromCart = async (cartId, productId) => {
 // Retrieve all products in the cart
 const getCartProducts = async (cartId) => {
     const cart = await query(
-        'SELECT products.name, carts_products.quantity FROM carts JOIN carts_products ON carts.id = carts_products.cart_id JOIN products ON carts_products.product_id = products.id WHERE carts.id = $1',
+        'SELECT products.id, products.name, carts_products.quantity FROM carts JOIN carts_products ON carts.id = carts_products.cart_id JOIN products ON carts_products.product_id = products.id WHERE carts.id = $1',
         [cartId]
     )
     return cart.rows; // Return the product details
+}
+
+// Retrieve all products in an order
+const getOrderProducts = async (orderId) => {
+    const order = await query(
+        'SELECT products.id, products.name, orders_products.quantity FROM orders JOIN orders_products ON orders.id = orders_products.order_id JOIN products ON orders_products.product_id = products.id WHERE orders.id = $1',
+        [orderId]
+    );
+    return order.rows;
+}
+
+// Creates a new order
+const createOrder = async (cart, userId) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN'); // Start a transaction
+        const order = await client.query(
+            'INSERT INTO orders (status, user_id, total_price) VALUES ($1, $2, $3) RETURNING *', // Create an order row with a pending status
+            ['pending', userId, cart.total_price]
+        );
+        const products = await getCartProducts(cart.id); // Retrieve the cart products and add their details to the order
+        for (const product of products) {
+            await client.query(
+                'INSERT INTO orders_products (order_id, product_id, quantity) VALUES ($1, $2, $3)',
+                [order.rows[0].id, product.id, product.quantity]
+            );
+        }
+        await client.query('COMMIT'); // Commit the transaction
+    } catch (error) {
+        console.error('Error creating order:', error);
+        await client.query('ROLLBACK'); // Rollback the transaction on error
+        return null;
+    } finally {
+        client.release();
+    }
+
+    return order.rows[0];
+}
+
+// Deletes a cart
+const deleteCart = async (cartId) => {
+    const client = await pool.connect();
+    // Delete the cart and all associated products
+    try {
+        await client.query('BEGIN'); // Start a transaction
+        await client.query('DELETE FROM carts_products WHERE cart_id = $1', [cartId]); // Delete cart products
+        await client.query('DELETE FROM carts WHERE id = $1', [cartId]); // Delete the cart itself
+        await client.query('COMMIT'); // Commit the transaction
+    } catch (error) {
+        console.error('Error deleting cart:', error);
+        await client.query('ROLLBACK'); // Rollback the transaction on error
+        return false;
+    }
+    return true; // Return true if everything worked.
 }
 
 module.exports = {
@@ -259,5 +313,8 @@ module.exports = {
     createCart,
     findProductInCart,
     removeProductFromCart,
-    getCartProducts
+    getCartProducts,
+    getOrderProducts,
+    createOrder,
+    deleteCart
 };

@@ -62,6 +62,36 @@ router.post('/:cartId', loggedIn, validation, async (req, res) => {
     return res.status(200).json({ message: 'Cart updated successfully', updatedCart, products });
 })
 
+router.post('/:cartId/checkout', loggedIn, async (req, res) => {
+    const { payment } = req.body;
+    if (!payment || !payment.firstName || !payment.lastName || !payment.cardNumber || !payment.expiryDate || !payment.cvv) { // Validate payment details
+        return res.status(400).json({ error: 'All payment details are required' });
+    }
+
+    try {
+        const cart = await db.findCartById(req.params.cartId); // Find the cart by ID
+        if (!cart) {
+            return res.status(404).json({ error: 'Cart not found.' });
+        }
+
+        const paymentStatus = true; // Mock payment processing
+        if (!paymentStatus) {
+            return res.status(500).json({ error: 'Payment processing failed.' });
+        }
+
+        const order = await db.createOrder(cart, req.user.id);  // Create the order
+        if (!order) {
+            return res.status(500).json({ error: 'Order creation failed.' });
+        }
+        const products = await db.getOrderProducts(order.id); // Get the order products
+        await db.deleteCart(cart.id); // Delete the cart after successful order creation
+        return res.status(200).json({ message: 'Order created successfully', order, products }); // Return the order and its products
+    } catch (error) {
+        console.error('Error during checkout:', error);
+        return res.status(500).json({ error: 'An error occurred during checkout.' });
+    }
+})
+
 router.delete('/:cartId/:productId', loggedIn, async (req, res) => {
     const { cartId, productId } = req.params; 
 
