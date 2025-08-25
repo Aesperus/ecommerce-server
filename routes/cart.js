@@ -22,6 +22,9 @@ function validation (req, res, next) {
 }
 
 router.get('/:cartId', loggedIn, async (req, res) => {
+    if (req.params.cartId <= 0 || !Number.isInteger(Number(req.params.cartId))) { // Validate cartId is a positive integer
+        return res.status(400).json({ error: 'Invalid cart ID.' });
+    }
     const cart = await db.findCartById(req.params.cartId);
     if (!cart) {
         return res.status(404).json({ error: 'Cart not found.' });
