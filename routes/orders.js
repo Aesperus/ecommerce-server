@@ -7,7 +7,7 @@ function loggedIn (req, res, next) {
     if (req.user) {
         next();
     } else {
-        res.status(401).send('User is not logged in.');
+        res.status(403).send('User is not logged in.');
     }
 }
 
@@ -29,7 +29,8 @@ router.get('/:orderId', loggedIn, async (req, res) => {
         if (!order) {
             return res.status(404).send('Order not found.');
         }
-        res.json(order);
+        const products = await db.getOrderProducts(order.id); // Get products for the order
+        res.status(200).json({ order, products });
     } catch (error) {
         console.error('Error fetching order:', error);
         res.status(500).send('Internal server error');
